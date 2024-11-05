@@ -5,7 +5,7 @@ from flask import Flask, request
 app = Flask(__name__)
 
 # Имя файла, в который будем сохранять данные
-DATA_FILE = 'data.json'
+DATA_FILE = '/tmp/data.json'
 
 # Создание пустого JSON файла, если его нет
 if not os.path.exists(DATA_FILE):
