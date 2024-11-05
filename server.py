@@ -1,30 +1,16 @@
 import os
-import psycopg2
+import json
 from flask import Flask, request
 
 app = Flask(__name__)
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
+# Имя файла, в который будем сохранять данные
+DATA_FILE = 'data.json'
 
-# Создание таблицы для хранения постбэков
-def create_table():
-    try:
-        print("Попытка подключения к базе данных для создания таблицы...")
-        with psycopg2.connect(DATABASE_URL) as conn:
-            with conn.cursor() as cursor:
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS postbacks (
-                        id SERIAL PRIMARY KEY,
-                        user_id TEXT,
-                        amount REAL
-                    )
-                ''')
-            conn.commit()
-        print("Таблица успешно создана или уже существует.")
-    except psycopg2.Error as e:
-        print(f"Ошибка при создании таблицы: {e}")
-
-create_table()
+# Создание пустого JSON файла, если его нет
+if not os.path.exists(DATA_FILE):
+    with open(DATA_FILE, 'w') as file:
+        json.dump([], file)
 
 # Обработчик для приема постбэков от 1WIN
 @app.route('/postback-handler', methods=['GET'])
@@ -44,23 +30,39 @@ def postback_handler():
                 return "Ошибка: Некорректный формат text", 400
 
             user_id, amount = parts
+            amount = float(amount)
 
-            # Сохранение данных в базу данных
+            # Чтение текущих данных из файла
             try:
-                print("Попытка подключения к базе данных для вставки данных...")
-                with psycopg2.connect(DATABASE_URL) as conn:
-                    with conn.cursor() as cursor:
-                        cursor.execute('''
-                            INSERT INTO postbacks (user_id, amount)
-                            VALUES (%s, %s)
-                        ''', (user_id, float(amount)))
-                    conn.commit()
+                with open(DATA_FILE, 'r') as file:
+                    data = json.load(file)
 
-                print("Постбэк успешно сохранен")
+                # Проверка, существует ли запись для данного user_id
+                user_found = False
+                for entry in data:
+                    if entry['user_id'] == user_id:
+                        # Обновляем сумму депозита
+                        entry['amount'] += amount
+                        user_found = True
+                        break
+
+                # Если запись не найдена, добавляем новую
+                if not user_found:
+                    new_entry = {
+                        "user_id": user_id,
+                        "amount": amount
+                    }
+                    data.append(new_entry)
+
+                # Запись обновленных данных в файл
+                with open(DATA_FILE, 'w') as file:
+                    json.dump(data, file, indent=4)
+
+                print("Постбэк успешно сохранен в JSON файл")
                 return "Постбэк успешно сохранен", 200
-            except psycopg2.Error as e:
-                print(f"Ошибка базы данных при вставке данных: {e}")
-                return "Ошибка базы данных", 500
+            except Exception as e:
+                print(f"Ошибка при сохранении в файл: {e}")
+                return "Ошибка при сохранении данных", 500
         except ValueError as e:
             print(f"Ошибка при разборе строки text: {e}")
             return "Ошибка при разборе строки text", 400
