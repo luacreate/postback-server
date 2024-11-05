@@ -13,11 +13,12 @@ def create_table():
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS postbacks (
                     id SERIAL PRIMARY KEY,
-                    user_id TEXT,
-                    country TEXT,
-                    event_type TEXT,
+                    event_id TEXT,
+                    date BIGINT,
                     amount REAL,
-                    currency TEXT
+                    transaction_id TEXT,
+                    country TEXT,
+                    user_id TEXT
                 )
             ''')
         conn.commit()
@@ -27,28 +28,32 @@ create_table()
 # Обработчик для приема постбэков от 1WIN
 @app.route('/postback-handler', methods=['GET'])
 def postback_handler():
-    # Получаем параметр text из URL
-    text = request.args.get('text')
+    # Получаем параметры из URL
+    event_id = request.args.get('event_id')
+    date = request.args.get('date')
+    amount = request.args.get('amount')
+    transaction_id = request.args.get('transaction_id')
+    country = request.args.get('country')
+    user_id = request.args.get('user_id')
     
-    if text:
+    # Проверка на наличие необходимых параметров
+    if event_id and date and amount and transaction_id and country and user_id:
         try:
-            # Парсим строку text, чтобы получить данные
-            user_id, country, event_type, amount, currency = text.split(':')
-
-            # Сохраняем данные в базу данных
+            # Сохранение данных в базу данных
             with psycopg2.connect(DATABASE_URL) as conn:
                 with conn.cursor() as cursor:
                     cursor.execute('''
-                        INSERT INTO postbacks (user_id, country, event_type, amount, currency)
-                        VALUES (%s, %s, %s, %s, %s)
-                    ''', (user_id, country, event_type, float(amount), currency))
+                        INSERT INTO postbacks (event_id, date, amount, transaction_id, country, user_id)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    ''', (event_id, int(date), float(amount), transaction_id, country, user_id))
                 conn.commit()
 
             return "Постбэк успешно сохранен", 200
-        except ValueError:
-            return "Ошибка при разборе строки text", 400
+        except psycopg2.Error as e:
+            print(f"Ошибка базы данных: {e}")
+            return "Ошибка базы данных", 500
     else:
-        return "Параметр text не найден", 400
+        return "Недостаточно данных для сохранения постбэка", 400
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
