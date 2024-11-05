@@ -8,16 +8,21 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 
 # Создание таблицы для хранения постбэков
 def create_table():
-    with psycopg2.connect(DATABASE_URL) as conn:
-        with conn.cursor() as cursor:
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS postbacks (
-                    id SERIAL PRIMARY KEY,
-                    user_id TEXT,
-                    amount REAL
-                )
-            ''')
-        conn.commit()
+    try:
+        print("Попытка подключения к базе данных для создания таблицы...")
+        with psycopg2.connect(DATABASE_URL) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS postbacks (
+                        id SERIAL PRIMARY KEY,
+                        user_id TEXT,
+                        amount REAL
+                    )
+                ''')
+            conn.commit()
+        print("Таблица успешно создана или уже существует.")
+    except psycopg2.Error as e:
+        print(f"Ошибка при создании таблицы: {e}")
 
 create_table()
 
@@ -35,12 +40,14 @@ def postback_handler():
 
             # Проверка на наличие двух частей в строке
             if len(parts) != 2:
+                print("Ошибка: Некорректный формат text")
                 return "Ошибка: Некорректный формат text", 400
 
             user_id, amount = parts
 
             # Сохранение данных в базу данных
             try:
+                print("Попытка подключения к базе данных для вставки данных...")
                 with psycopg2.connect(DATABASE_URL) as conn:
                     with conn.cursor() as cursor:
                         cursor.execute('''
@@ -49,14 +56,16 @@ def postback_handler():
                         ''', (user_id, float(amount)))
                     conn.commit()
 
+                print("Постбэк успешно сохранен")
                 return "Постбэк успешно сохранен", 200
             except psycopg2.Error as e:
-                print(f"Ошибка базы данных: {e}")
+                print(f"Ошибка базы данных при вставке данных: {e}")
                 return "Ошибка базы данных", 500
         except ValueError as e:
             print(f"Ошибка при разборе строки text: {e}")
             return "Ошибка при разборе строки text", 400
     else:
+        print("Параметр text не найден")
         return "Параметр text не найден", 400
 
 if __name__ == '__main__':
