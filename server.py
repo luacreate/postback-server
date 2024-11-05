@@ -13,12 +13,8 @@ def create_table():
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS postbacks (
                     id SERIAL PRIMARY KEY,
-                    event_id TEXT,
-                    date BIGINT,
-                    amount REAL,
-                    transaction_id TEXT,
-                    country TEXT,
-                    user_id TEXT
+                    user_id TEXT,
+                    amount REAL
                 )
             ''')
         conn.commit()
@@ -28,32 +24,40 @@ create_table()
 # Обработчик для приема постбэков от 1WIN
 @app.route('/postback-handler', methods=['GET'])
 def postback_handler():
-    # Получаем параметры из URL
-    event_id = request.args.get('event_id')
-    date = request.args.get('date')
-    amount = request.args.get('amount')
-    transaction_id = request.args.get('transaction_id')
-    country = request.args.get('country')
-    user_id = request.args.get('user_id')
+    # Получаем параметр text из URL
+    text = request.args.get('text')
     
-    # Проверка на наличие необходимых параметров
-    if event_id and date and amount and transaction_id and country and user_id:
+    if text:
         try:
-            # Сохранение данных в базу данных
-            with psycopg2.connect(DATABASE_URL) as conn:
-                with conn.cursor() as cursor:
-                    cursor.execute('''
-                        INSERT INTO postbacks (event_id, date, amount, transaction_id, country, user_id)
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                    ''', (event_id, int(date), float(amount), transaction_id, country, user_id))
-                conn.commit()
+            # Парсим строку text, чтобы получить данные
+            print(f"Получено значение text: {text}")
+            parts = text.split(':')
 
-            return "Постбэк успешно сохранен", 200
-        except psycopg2.Error as e:
-            print(f"Ошибка базы данных: {e}")
-            return "Ошибка базы данных", 500
+            # Проверка на наличие двух частей в строке
+            if len(parts) != 2:
+                return "Ошибка: Некорректный формат text", 400
+
+            user_id, amount = parts
+
+            # Сохранение данных в базу данных
+            try:
+                with psycopg2.connect(DATABASE_URL) as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute('''
+                            INSERT INTO postbacks (user_id, amount)
+                            VALUES (%s, %s)
+                        ''', (user_id, float(amount)))
+                    conn.commit()
+
+                return "Постбэк успешно сохранен", 200
+            except psycopg2.Error as e:
+                print(f"Ошибка базы данных: {e}")
+                return "Ошибка базы данных", 500
+        except ValueError as e:
+            print(f"Ошибка при разборе строки text: {e}")
+            return "Ошибка при разборе строки text", 400
     else:
-        return "Недостаточно данных для сохранения постбэка", 400
+        return "Параметр text не найден", 400
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
