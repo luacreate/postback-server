@@ -6,8 +6,13 @@ import json
 app = Flask(__name__)
 CORS(app)  # Включаем CORS для всех маршрутов
 
-# Имя файла, в который будем сохранять данные
-DATA_FILE = './data/data.json'
+# Задаем путь к папке и файлу данных
+DATA_DIR = './data'
+DATA_FILE = os.path.join(DATA_DIR, 'data.json')
+
+# Проверка, существует ли папка, и создание папки, если ее нет
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
 
 # Создание пустого JSON файла, если его нет
 if not os.path.exists(DATA_FILE):
@@ -32,16 +37,20 @@ def postback_handler():
             amount = float(amount)
 
             try:
+                # Чтение текущих данных из файла
                 with open(DATA_FILE, 'r') as file:
                     data = json.load(file)
 
+                # Проверка, существует ли запись для данного user_id
                 user_found = False
                 for entry in data:
                     if entry['user_id'] == user_id:
+                        # Обновляем сумму депозита
                         entry['amount'] += amount
                         user_found = True
                         break
 
+                # Если запись не найдена, добавляем новую
                 if not user_found:
                     new_entry = {
                         "user_id": user_id,
@@ -49,6 +58,7 @@ def postback_handler():
                     }
                     data.append(new_entry)
 
+                # Запись обновленных данных в файл
                 with open(DATA_FILE, 'w') as file:
                     json.dump(data, file, indent=4)
 
@@ -64,7 +74,7 @@ def postback_handler():
         print("Параметр text не найден")
         return "Параметр text не найден", 400
 
-# Добавляем новый маршрут для получения данных из data.json
+# Маршрут для получения данных из data.json
 @app.route('/data', methods=['GET'])
 def get_data():
     try:
