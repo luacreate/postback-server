@@ -7,7 +7,7 @@ app = Flask(__name__)
 CORS(app)  # Включаем CORS для всех маршрутов
 
 # Имя файла, в который будем сохранять данные
-DATA_FILE = '/tmp/data.json'
+DATA_FILE = './data/data.json'
 
 # Создание пустого JSON файла, если его нет
 if not os.path.exists(DATA_FILE):
