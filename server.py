@@ -1,8 +1,10 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS  # Импортируем CORS
 import os
 import json
 
 app = Flask(__name__)
+CORS(app)  # Включаем CORS для всех маршрутов
 
 # Имя файла, в который будем сохранять данные
 DATA_FILE = '/tmp/data.json'
