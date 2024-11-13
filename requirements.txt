@@ -1,5 +1,6 @@
 Flask
 psycopg2
 flask-cors
-aiogram
 requests
+aiogram==2.25.1
+
